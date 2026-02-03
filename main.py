@@ -1,43 +1,50 @@
 import sys
 import os
-# Add src to path if needed, though structure allows running from root
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
-
 from src.pipeline import MedicalRecommender
 
 def main():
-    print("=== Medical Speciality Recommender (Phase 1) ===")
+    print("\n" + "="*50)
+    print("=== MEDICAL SPECIALITY RECOMMENDER (PHASE 1) ===")
+    print("="*50)
     
     recommender = MedicalRecommender()
     recommender.load_data()
     
     if not recommender.is_ready:
-        print("Failed to initialize system.")
+        print("Erreur : Initialisation échouée.")
         return
 
-    # Interactive loop or Argument mode
-    if len(sys.argv) > 1:
-        text = " ".join(sys.argv[1:])
-        print(f"\nAnalyzing: '{text}'")
-        result = recommender.predict(text)
-        print("\n--- Result ---")
-        print(f"Symptoms detected: {result['detected_symptoms']}")
-        print(f"Top Recommendations:")
-        for spec, score in result['recommendations']:
-            print(f"  - {spec}: {score:.1f}")
-    else:
-        print("\nEnter patient symptoms (or 'q' to quit):")
-        while True:
-            text = input("> ")
-            if text.lower() in ['q', 'quit', 'exit']:
-                break
+    print("\n[INFO] Système prêt. Extraction multilingue et gestion de négation activées.")
+    
+    while True:
+        print("\n" + "-"*30)
+        text = input("Décrivez vos symptômes (ou 'q' pour quitter) :\n> ")
+        
+        if text.lower() in ['q', 'quit', 'exit']:
+            break
             
-            result = recommender.predict(text)
-            print(f"Symptoms found: {result['detected_symptoms']}")
-            print("Recommendations:")
+        # Demander l'âge pour le diagnostic différentiel (optionnel)
+        age_input = input("Âge du patient (optionnel, appuyez sur Entrée) : ")
+        age = int(age_input) if age_input.isdigit() else None
+        
+        # Demander si c'est une urgence
+        urgent_input = input("Est-ce une urgence ? (y/n) : ").lower()
+        is_urgent = True if urgent_input == 'y' else False
+
+        # Lancement de la prédiction "Zéro Limite"
+        result = recommender.predict(text, age=age, urgent=is_urgent)
+        
+        print("\n--- ANALYSE ---")
+        if not result['detected_symptoms']:
+            print("⚠️ Aucun symptôme médical reconnu. Essayez d'être plus spécifique.")
+        else:
+            print(f"✅ Symptômes détectés : {', '.join(result['detected_symptoms'])}")
+            print("\n--- RECOMMANDATIONS (TOP 3) ---")
             for spec, score in result['recommendations']:
-                print(f"  {spec} (Score: {score})")
-            print("-" * 20)
+                # On affiche le score sous forme de pourcentage de confiance
+                print(f"📍 {spec.ljust(20)} : {score}% de pertinence")
+        
+        print("-"*30)
 
 if __name__ == "__main__":
     main()

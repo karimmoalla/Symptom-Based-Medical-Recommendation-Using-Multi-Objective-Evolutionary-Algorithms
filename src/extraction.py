@@ -1,66 +1,57 @@
 import re
-from typing import List
+from typing import List, Set
 from deep_translator import GoogleTranslator
-from fuzzywuzzy import process
-from src.preprocessing import normalize_text
+from fuzzywuzzy import process, fuzz
 
 class SymptomExtractor:
     def __init__(self, symptoms_list: List[str]):
-        self.symptoms = symptoms_list
-        # Nettoyage des noms de colonnes : 'skin_rash' -> 'skin rash'
-        self.clean_map = {s.replace('_', ' ').strip().lower(): s for s in self.symptoms}
+        # On nettoie TOUT : on enlève les espaces et on met en minuscule
+        # ' skin_rash ' -> 'skin_rash'
+        self.symptoms = [str(s).strip() for s in symptoms_list]
         
-        # Dictionnaire manuel de synonymes FR/EN pour les cas critiques
-        # Cela garantit une précision chirurgicale sur les termes fréquents
-        self.manual_synonyms = {
-            "estomac": "stomach pain",
-            "ventre": "abdominal pain",
-            "poitrine": "chest pain",
-            "coeur": "chest pain", # Souvent confondu par les patients
-            "gratte": "itching",
-            "boutons": "skin rash",
-            "souffle": "breathlessness",
-            "tete": "headache",
-            "fatigue": "fatigue",
-            "fievre": "high fever"
+        # Dictionnaire de secours (Mapping direct)
+        self.manual_keywords = {
+            "dizzy": "dizziness",
+            "vertigo": "dizziness",
+            "head": "headache",
+            "stomach": "stomach_pain",
+            "skin": "skin_rash",
+            "itch": "itching",
+            "vomit": "vomiting",
+            "fever": "high_fever"
         }
 
     def extract(self, text: str) -> List[str]:
-        # 1. Normalisation initiale du texte brut
-        text_raw = text.lower()
-        
-        # 2. Traduction automatique (FR -> EN)
+        # 1. Traduction
         try:
-            # On traduit pour matcher la base de données qui est en anglais
-            translated_text = GoogleTranslator(source='auto', target='en').translate(text_raw)
-        except Exception:
-            translated_text = text_raw # Fallback si pas d'internet
-            
-        normalized_input = normalize_text(translated_text)
+            text_en = GoogleTranslator(source='auto', target='en').translate(text).lower()
+            print(f"[DEBUG] Traduction : {text_en}")
+        except:
+            text_en = text.lower()
+
         found_symptoms = set()
 
-        # 3. Vérification des synonymes manuels (priorité haute)
-        # On regarde dans le texte ORIGINAL (FR)
-        for fr_term, en_target in self.manual_synonyms.items():
-            if fr_term in text_raw:
-                found_symptoms.add(self.clean_map.get(en_target, en_target))
+        # 2. Vérification par mots-clés manuels
+        for key, target_val in self.manual_keywords.items():
+            if key in text_en:
+                # On cherche la colonne qui contient ce mot-clé dans l'Excel
+                for col_name in self.symptoms:
+                    if target_val.lower() in col_name.lower():
+                        found_symptoms.add(col_name)
 
-        # 4. Recherche par correspondance exacte dans le texte traduit
-        for clean_symptom, original_col in self.clean_map.items():
-            # Utilisation de Regex pour éviter les faux positifs (ex: "fat" dans "fatigue")
-            pattern = r'\b' + re.escape(clean_symptom) + r'\b'
-            if re.search(pattern, normalized_input):
-                found_symptoms.add(original_col)
+        # 3. Vérification par correspondance dans les noms de colonnes
+        # On regarde si un nom de symptôme est contenu dans la phrase
+        for col_name in self.symptoms:
+            # On transforme 'skin_rash' en 'skin rash' pour comparer
+            readable_name = col_name.replace('_', ' ').lower()
+            if readable_name in text_en and len(readable_name) > 3:
+                found_symptoms.add(col_name)
 
-        # 5. Fuzzy Matching (pour les fautes de frappe comme "stomach paine")
-        # On découpe l'input traduit en segments
-        input_segments = normalized_input.split()
-        for segment in input_segments:
-            if len(segment) < 4: continue # On ignore les petits mots
-            
-            # On cherche le symptôme le plus proche
-            match, score = process.extractOne(segment, self.clean_map.keys())
-            if score > 85: # Seuil de confiance
-                found_symptoms.add(self.clean_map[match])
+        # 4. Fuzzy Matching (si rien n'est trouvé)
+        if not found_symptoms:
+            # On compare la phrase entière aux colonnes
+            match, score = process.extractOne(text_en, self.symptoms, scorer=fuzz.partial_ratio)
+            if score > 80:
+                found_symptoms.add(match)
 
         return list(found_symptoms)

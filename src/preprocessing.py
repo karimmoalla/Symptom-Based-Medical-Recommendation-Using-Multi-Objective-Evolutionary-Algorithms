@@ -8,7 +8,7 @@ def normalize_text(text: str) -> str:
     if not isinstance(text, str):
         return ""
     
-    # Lowercase
+    # Lowercasee
     text = text.lower()
     
     # Remove accents
