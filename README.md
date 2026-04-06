@@ -1,48 +1,57 @@
-# Système de Recommandation Médicale Intelligent (Phase 1)
+```markdown
+#  Projet Recommandation Médicale - Phase 1
 
-Ce projet est un moteur d’aide à la décision médicale capable de transformer une description de symptômes en langage naturel en une recommandation de spécialités médicales optimisée.
+Ce projet implémente la première phase d'un système d'orientation médicale intelligent, visant à transformer une plainte patient en une recommandation de spécialité médicale.
 
-## Fonctionnalités Clés ("Zéro Limite")
+##  Analyse de la Base de Données (`Specialist.xlsx`)
+La base de données sert de **matrice de connaissances**. 
+- **Dimensions :** 4920 cas cliniques x 133 colonnes.
+- **Logique :** Variables binaires (0/1) représentant la présence de symptômes corrélés à une étiquette `Disease` (Spécialité).
 
-Pour éliminer les biais des systèmes classiques, ce moteur intègre des mécanismes avancés :
+##  Architecture du Code & Réflexion
+Le système est découpé en modules pour garantir la robustesse de l'extraction :
 
-* **Extraction NLP Multilingue :** Utilisation de `deep-translator` pour supporter le Français et l'Anglais, couplé à `fuzzywuzzy` pour tolérer les fautes de frappe.
-* **Intelligence Sémantique :** Un dictionnaire de mapping convertit le langage courant (ex: "vertiges") en terminologie médicale normalisée (ex: "dizziness").
-* **Scoring Probabiliste Pondéré :** Le système calcule la pertinence d'une spécialité selon la **spécificité** du symptôme. Un symptôme rare (ex: jaunisse) a plus d'influence qu'un symptôme banal (ex: fatigue).
-* **Diagnostic Différentiel Contextuel :** Intégration de l'âge et du niveau d'urgence pour ajuster les scores (ex: priorité automatique à la Cardiologie pour les urgences seniors).
+### 1. `config.py` (Centralisation)
+* **Rôle :** Paramétrage global.
+* **Réflexion :** Garantit la portabilité du projet (changement facile de source de données).
 
----
+### 2. `preprocessing.py` (Nettoyage)
+* **Rôle :** Normalisation du texte (minuscules, retrait accents/ponctuation).
+* **Réflexion :** Réduire le "bruit" pour ne garder que l'essence sémantique.
 
-##  Comment le code travaille (Pipeline Logique)
-
-Le système suit un flux de données rigoureux pour garantir la précision du résultat :
-
-1.  **Normalisation :** Traduction vers l'anglais et suppression des mots inutiles (*stop-words*) comme "je", "sens", "un peu".
-2.  **Matching :** Recherche par mots-clés directs et par similarité de caractères dans la base de données `Specialist.xlsx`.
-3.  **Calcul :** Le moteur de scoring attribue des points à chaque spécialité en fonction de la fréquence d'apparition du symptôme dans la littérature médicale.
-4.  **Optimisation :** Application des bonus d'urgence et normalisation en pourcentages de confiance.
+### 3. `extraction.py` (Moteur NLP Robuste)
+* **Logique :** Traduction automatique -> Dictionnaire de synonymes -> Fuzzy Matching (Algorithme de Levenshtein).
+* **Réflexion :** Tolérance maximale aux erreurs humaines et gestion du multilingue (FR/EN).
 
 
 
----
+### 4. `scoring.py` (Moteur de Décision)
+* **Formule :** $Score(Spécialité) = \sum Poids(SymptômesDetected)$
+* **Réflexion :** La décision est basée sur la probabilité statistique issue de l'analyse globale de la base de données.
 
-##  Scénarios de Test et Validation
-
-| Input Utilisateur | Contexte | Résultat Attendu | Force du Code |
-| :--- | :--- | :--- | :--- |
-| *"J'ai des vertiges"* | Urgence: Oui | **Neurologist** | Mapping sémantique (Dizzy) |
-| *"Yellow skin & stomach pain"* | Standard | **Hepatologist** | Poids de spécificité élevé |
-| *"Chest pain"* | Âge: 70 / Urgent: Y | **Cardiologist** | Diagnostic différentiel actif |
-| *"I feel itchy it's weird"* | Standard | **Dermatologist** | Filtrage du bruit textuel |
+### 5. `pipeline.py` (Orchestrateur)
+* **Rôle :** Relie les modules pour transformer un "Input Brut" en "Top 3 Spécialités".
 
 ---
+##  Vers la Phase 4 (Optimisation NSGA-II)
+Cette Phase 1 est cruciale pour le futur algorithme génétique. En filtrant avec précision la spécialité médicale, elle définit l'espace de recherche restreint dans lequel le **NSGA-II** pourra optimiser les objectifs de **coût, distance et temps d'attente**.
 
-##  Installation et Utilisation
+## Usage
 
-### 1. Prérequis
-Python 3.8 ou supérieur.
+Pour lancer l'interface interactive (recommandé pour un utilisateur non technique) :
 
-### 2. Dépendances
-Installez les bibliothèques nécessaires :
 ```bash
-pip install pandas openpyxl deep-translator fuzzywuzzy python-Levenshtein
+python main.py
+```
+
+Entrées demandées :
+- `symptoms` : description libre des symptômes (français ou anglais)
+- `age` : âge du patient (optionnel)
+- `urgent` : `y` ou `n` (optionnel)
+- `budget` : budget maximum en € (optionnel)
+- `location` : ville/zone (optionnel)
+
+Poids par défaut (combinaison qualité/coût/proximité) : `quality=0.5`, `cost=0.3`, `proximity=0.2`.
+
+Remarque : pour un usage programmatique, appelez `MedicalRecommender.predict(...)` et fournissez `budget`, `location` et les poids si nécessaire.
+```
