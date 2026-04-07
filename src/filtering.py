@@ -10,7 +10,6 @@ class ProviderFilter:
     """
 
     def __init__(self, providers_file: str, specialist_file: str):
-        print(f"Chargement de la base prestataires K2 : {providers_file}")
         try:
             # On ignore la première ligne qui contient le titre de la base K2
             self.df_providers = pd.read_excel(providers_file, sheet_name='Médecins', skiprows=1)
@@ -36,11 +35,9 @@ class ProviderFilter:
                         lambda x: 1 if str(x).strip().lower() == 'oui' else 0
                     )
 
-            print(f"[OK] Prestataires K2 charges : {len(self.df_providers)} médecins")
             self.is_ready = True
 
         except Exception as e:
-            print(f"[ERROR] Erreur lors du chargement des prestataires : {e}")
             self.df_providers = None
             self.is_ready = False
 

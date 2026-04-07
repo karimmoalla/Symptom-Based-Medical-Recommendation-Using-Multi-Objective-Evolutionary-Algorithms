@@ -15,7 +15,6 @@ class MedicalRecommender:
         self.is_ready = False
 
     def load_data(self):
-        print(f"Loading data and K1 Brain...")
         try:
             # Instantiate K1Brain which loads the intelligence (RF weights, IDF, Tree)
             self.scorer = K1Brain()
@@ -27,13 +26,9 @@ class MedicalRecommender:
             # Charger les prestataires
             if os.path.exists(K2_PROVIDERS_FILE):
                 self.provider_filter = ProviderFilter(K2_PROVIDERS_FILE, SPECIALIST_FILE)
-            else:
-                print(f"[ALERT] Fichier des prestataires non trouve : {K2_PROVIDERS_FILE}")
             
             self.is_ready = True
-            print("System initialized successfully.")
         except Exception as e:
-            print(f"Error loading data: {e}")
             self.is_ready = False
 
     def predict(self, text: str, age: int = None, urgent: bool = False, top_n: int = 3,

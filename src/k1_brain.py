@@ -13,7 +13,6 @@ class K1Brain:
         Initialise le Cerveau K1 qui combine le Score de l'Arbre Hiérarchique 
         et la Probabilité Random Forest.
         """
-        print("Initialisation du K1 Brain (Arbre Hiérarchique + Random Forest)...")
         self._load_knowledge()
 
     def _normalize_symptom_name(self, name: str) -> str:
